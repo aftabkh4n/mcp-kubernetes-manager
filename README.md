@@ -1,0 +1,107 @@
+# MCP Kubernetes Manager
+
+A .NET MCP server that lets AI assistants manage Kubernetes clusters through
+natural language. Instead of writing kubectl commands, you just ask Claude
+what you want and it talks to your cluster directly.
+
+## What you can do
+
+Ask Claude things like:
+
+- "List all pods in my cluster"
+- "Show me a summary of the idp-platform namespace"
+- "Scale the idp-platform deployment to 3 replicas"
+- "Restart the idp-platform deployment"
+- "Is my deployment healthy?"
+- "Show me the last 50 log lines from that pod"
+- "What namespaces do I have?"
+
+Claude calls the right tool, talks to Kubernetes, and returns real data from
+your cluster. No kubectl, no terminal, no manual commands.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| ListPods | Lists all pods across all namespaces or a specific one |
+| GetPodLogs | Fetches recent log output from any pod |
+| ListDeployments | Shows all deployments with replica status |
+| ScaleDeployment | Scales a deployment to a specified replica count |
+| RestartDeployment | Triggers a rolling restart on a deployment |
+| GetDeploymentStatus | Returns detailed rollout status and conditions |
+| ListNamespaces | Lists all namespaces in the cluster |
+| GetNamespaceSummary | Shows pods, deployments and services in one view |
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | .NET 9 |
+| MCP SDK | ModelContextProtocol 0.2.0 |
+| Kubernetes client | KubernetesClient |
+| Logging | Serilog |
+| Transport | stdio (standard input/output) |
+
+## Running locally
+
+Prerequisites: .NET 9 SDK, kubectl configured, Docker Desktop with
+Kubernetes enabled
+
+```bash
+git clone https://github.com/aftabkh4n/mcp-kubernetes-manager
+cd mcp-kubernetes-manager
+
+dotnet build
+dotnet run --project src/Mcp.KubernetesManager
+```
+
+You should see:
+[INF] Connected to Kubernetes cluster: https://127.0.0.1:xxxxx
+[INF] MCP Server ready. Waiting for connections...
+[INF] Available tools: ListPods, GetPodLogs, ListDeployments...
+
+## Connecting to Claude Desktop
+
+Open your Claude Desktop config file at:
+
+Windows: %APPDATA%\Claude\claude_desktop_config.json
+
+Add this:
+
+```json
+{
+  "mcpServers": {
+    "kubernetes-manager": {
+      "command": "C:\\Program Files\\dotnet\\dotnet.exe",
+      "args": [
+        "run",
+        "--project",
+        "C:\\path\\to\\mcp-kubernetes-manager\\src\\Mcp.KubernetesManager"
+      ]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Go to Settings and you should see
+kubernetes-manager listed under Local MCP servers.
+
+Open a new chat and ask: "List all pods in my Kubernetes cluster"
+
+## Safety
+
+ScaleDeployment has a hard limit of 10 replicas to prevent accidental
+over-scaling. All tools are read-safe except ScaleDeployment and
+RestartDeployment which make changes to the cluster.
+
+## Project structure
+
+McpKubernetes/
+└── src/
+└── Mcp.KubernetesManager/
+├── Tools/
+│   ├── PodTools.cs         # Pod listing and log retrieval
+│   ├── DeploymentTools.cs  # Scaling, restarting, status checks
+│   └── NamespaceTools.cs   # Namespace listing and summaries
+└── Program.cs              # Server startup and DI registration
+

@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mcp.KubernetesManager/Mcp.KubernetesManager.csproj" />
+  </Folder>
+</Solution>

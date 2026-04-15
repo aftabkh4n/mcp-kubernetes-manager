@@ -30,41 +30,35 @@ jobs:
           PR_MERGED_AT: ${{ github.event.pull_request.merged_at }}
         run: |
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | head -20 | tr '\n' ', ')
+          
+          PR_BODY_SAFE="${PR_BODY:-No description provided}"
 
-          PROMPT="You are a technical writer generating a changelog entry for an open source .NET MCP Kubernetes Manager project.
-
-          PR #${PR_NUMBER}: ${PR_TITLE}
-          Author: ${PR_AUTHOR}
-          Merged: ${PR_MERGED_AT}
-          Description: ${PR_BODY}
-          Changed files: ${CHANGED_FILES}
-
-          Write a concise changelog entry in this exact format:
-          ## [PR #${PR_NUMBER}] ${PR_TITLE}
-          *${PR_MERGED_AT} by @${PR_AUTHOR}*
-
-          ### Changes
-          - bullet points describing what changed, written for developers reading the changelog
-
-          ### Files changed
-          - list the key files changed
-
-          Keep it factual and concise. No marketing language."
+          PAYLOAD=$(jq -n \
+            --arg model "claude-haiku-4-5-20251001" \
+            --arg pr_num "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            --arg pr_author "$PR_AUTHOR" \
+            --arg pr_merged "$PR_MERGED_AT" \
+            --arg pr_body "$PR_BODY_SAFE" \
+            --arg files "$CHANGED_FILES" \
+            '{
+              model: $model,
+              max_tokens: 1024,
+              messages: [{
+                role: "user",
+                content: ("You are a technical writer generating a changelog entry for an open source .NET MCP Kubernetes Manager project.\n\nPR #" + $pr_num + ": " + $pr_title + "\nAuthor: " + $pr_author + "\nMerged: " + $pr_merged + "\nDescription: " + $pr_body + "\nChanged files: " + $files + "\n\nWrite a concise changelog entry in this exact format:\n## [PR #" + $pr_num + "] " + $pr_title + "\n*" + $pr_merged + " by @" + $pr_author + "*\n\n### Changes\n- bullet points describing what changed\n\n### Files changed\n- list the key files changed\n\nKeep it factual and concise. No marketing language.")
+              }]
+            }')
 
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
-            -d "{
-              \"model\": \"claude-haiku-4-5-20251001\",
-              \"max_tokens\": 1024,
-              \"messages\": [{
-                \"role\": \"user\",
-                \"content\": $(echo "$PROMPT" | jq -Rs .)
-              }]
-            }")
+            -d "$PAYLOAD")
 
-          ENTRY=$(echo "$RESPONSE" | jq -r '.content[0].text')
+          echo "API Response: $RESPONSE"
+
+          ENTRY=$(echo "$RESPONSE" | jq -r '.content[0].text // "Error: could not generate changelog entry"')
 
           if [ ! -f CHANGELOG.md ]; then
             echo "# Changelog" > CHANGELOG.md

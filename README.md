@@ -118,3 +118,6 @@ Release notes are generated automatically on every merge.
 
 ## Automated Changelog
 Every merged PR automatically generates a changelog entry via Claude AI.
+
+## Tools
+- ListPods, GetPodLogs, ListDeployments, ScaleDeployment, RestartDeployment
